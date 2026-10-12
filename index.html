@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Al-Falah Salary Slip Portal</title>
+<meta name="description" content="Al-Falah Islamic School employee salary slip portal">
+<meta name="theme-color" content="#0F294A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Al-Falah Salary">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+  :root{--navy:#0F294A;--surface:#f8f9ff;--ink:#0d1c2e}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--navy);overscroll-behavior:none}
+  body{display:flex;flex-direction:column;height:100vh;height:100dvh;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;overflow:hidden}
+  #top{flex:none;height:env(safe-area-inset-top,0);background:var(--navy)}
+  #bottom{flex:none;height:env(safe-area-inset-bottom,0);background:var(--surface)}
+  #app{flex:1 1 auto;min-height:0;width:100%;border:0;background:var(--surface);display:block}
+  .layer{position:fixed;left:0;right:0;top:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;background:var(--surface);color:var(--ink);z-index:5}
+  .layer[hidden]{display:none}
+  .layer img{width:96px;height:96px;border-radius:50%;box-shadow:0 0 0 5px #dce9ff}
+  .layer h1{font-size:18px;margin:18px 0 6px;color:var(--navy)}
+  .layer p{margin:0 0 18px;font-size:14px;color:#44474e;max-width:320px;line-height:1.5}
+  .spin{width:30px;height:30px;border:3px solid #dce9ff;border-top-color:var(--navy);border-radius:50%;animation:s .8s linear infinite;margin-top:18px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .btn{min-height:46px;padding:0 20px;border:0;border-radius:12px;background:var(--navy);color:#fff;font:700 14px/1 inherit;font-family:inherit;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;margin:4px}
+  .btn.ghost{background:#e6eeff;color:var(--navy)}
+  #install{position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom,0));z-index:10;background:var(--navy);color:#fff;border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 28px rgba(0,20,47,.4)}
+  #install[hidden]{display:none}
+  #install img{width:44px;height:44px;border-radius:50%;flex:none;background:#fff}
+  #install .t{flex:1;min-width:0;font-size:13px;line-height:1.35}
+  #install .t b{display:block;font-size:14px}
+  #install .x{background:none;border:0;color:#b0c8f1;font-size:22px;line-height:1;width:36px;height:36px;cursor:pointer;flex:none}
+  #install .go{background:#fff;color:var(--navy);border:0;border-radius:10px;font:700 13px inherit;font-family:inherit;min-height:38px;padding:0 14px;cursor:pointer;flex:none}
+  noscript{position:fixed;inset:0;background:#fff;color:#000;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;z-index:20}
+</style>
+</head>
+<body>
+  <div id="top"></div>
+  <iframe id="app" title="Al-Falah Salary Slip Portal" allow="clipboard-write; fullscreen" referrerpolicy="no-referrer-when-downgrade"></iframe>
+  <div id="bottom"></div>
+
+  <!-- shown while the portal loads -->
+  <div id="splash" class="layer">
+    <img src="icons/icon-192.png" alt="Al-Falah Islamic School">
+    <h1>Al-Falah Islamic School</h1>
+    <p>Employee Salary Slip Portal</p>
+    <div class="spin"></div>
+  </div>
+
+  <!-- shown if offline or the portal does not respond -->
+  <div id="problem" class="layer" hidden>
+    <img src="icons/icon-192.png" alt="Al-Falah Islamic School">
+    <h1 id="problemTitle">Cannot reach the portal</h1>
+    <p id="problemText">Please check your internet connection and try again.</p>
+    <div>
+      <button class="btn" id="retry" type="button">Try again</button>
+      <a class="btn ghost" id="openBrowser" target="_blank" rel="noopener">Open in browser</a>
+    </div>
+  </div>
+
+  <!-- install helper (only when not installed yet) -->
+  <div id="install" hidden>
+    <img src="icons/icon-192.png" alt="">
+    <div class="t" id="installText"></div>
+    <button class="go" id="installGo" type="button" hidden>Install</button>
+    <button class="x" id="installClose" type="button" aria-label="Close">&times;</button>
+  </div>
+
+  <noscript>Please enable JavaScript to use the Al-Falah Salary Slip Portal.</noscript>
+
+<script>
+(function () {
+  'use strict';
+
+  // ====== ONLY SETTING YOU MAY EVER NEED TO CHANGE ======
+  // Your Google Apps Script Web App link (the one ending with /exec).
+  var EXEC_URL = 'https://script.google.com/macros/s/AKfycbwwqd8nSSL95QFGxwbBfFuoSWqW4kBzWi_3xFLxfT-L4Hw__FvlnRlmDTlkdJEO3-cpsw/exec';
+  // ======================================================
+
+  var $ = function (id) { return document.getElementById(id); };
+  var frame = $('app'), splash = $('splash'), problem = $('problem');
+  var timer = null, loaded = false;
+
+  $('openBrowser').href = EXEC_URL;
+
+  function showProblem(title, text) {
+    $('problemTitle').textContent = title;
+    $('problemText').textContent = text;
+    splash.hidden = true;
+    problem.hidden = false;
+  }
+
+  function loadPortal() {
+    loaded = false;
+    problem.hidden = true;
+    splash.hidden = false;
+    clearTimeout(timer);
+    if (navigator.onLine === false) {
+      showProblem('No internet connection', 'Please connect to the internet and try again.');
+      return;
+    }
+    frame.src = EXEC_URL;
+    timer = setTimeout(function () {
+      if (!loaded) showProblem('Portal is taking too long', 'Please check your internet connection and try again, or open it in the browser.');
+    }, 25000);
+  }
+
+  frame.addEventListener('load', function () {
+    if (!frame.getAttribute('src')) return;
+    loaded = true;
+    clearTimeout(timer);
+    splash.hidden = true;
+    problem.hidden = true;
+  });
+
+  $('retry').addEventListener('click', function () { frame.removeAttribute('src'); loadPortal(); });
+  window.addEventListener('online', function () { if (!loaded) loadPortal(); });
+  window.addEventListener('offline', function () { if (!loaded) showProblem('No internet connection', 'Please connect to the internet and try again.'); });
+
+  loadPortal();
+
+  // ---------- Service worker (makes the app installable) ----------
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+
+  // ---------- Install helper ----------
+  var DISMISS_KEY = 'afsp_install_dismissed';
+  function dismissedRecently() {
+    try { var t = parseInt(localStorage.getItem(DISMISS_KEY) || '0', 10); return t && (Date.now() - t) < 7 * 864e5; } catch (e) { return false; }
+  }
+  function rememberDismiss() { try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch (e) {} }
+
+  var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+  var ua = navigator.userAgent || '';
+  var isIOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var deferred = null;
+
+  function showInstall(html, withButton) {
+    if (standalone || dismissedRecently()) return;
+    $('installText').innerHTML = html;
+    $('installGo').hidden = !withButton;
+    $('install').hidden = false;
+  }
+
+  $('installClose').addEventListener('click', function () { $('install').hidden = true; rememberDismiss(); });
+
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferred = e;
+    showInstall('<b>Install Al-Falah Salary app</b>Quick access from your home screen.', true);
+  });
+  $('installGo').addEventListener('click', function () {
+    if (!deferred) return;
+    deferred.prompt();
+    deferred.userChoice.then(function () { deferred = null; $('install').hidden = true; });
+  });
+  window.addEventListener('appinstalled', function () { $('install').hidden = true; });
+
+  if (isIOS && !standalone) {
+    setTimeout(function () {
+      showInstall('<b>Add to Home Screen</b>Tap the Share button, then &ldquo;Add to Home Screen&rdquo;.', false);
+    }, 2500);
+  }
+})();
+</script>
+</body>
+</html>
